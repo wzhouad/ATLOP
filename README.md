@@ -15,7 +15,7 @@ If you make use of this code in your work, please kindly cite the following pape
 ## Requirements
 * Python (tested on 3.7)
 * [PyTorch](http://pytorch.org/) (tested on 1.4.0)
-* [Transformers](https://github.com/huggingface/transformers) (tested on 3.0.2)
+* [Transformers](https://github.com/huggingface/transformers) (tested on 3.3.1)
 * [apex](https://github.com/NVIDIA/apex) (tested on 0.1)
 * [opt-einsum](https://github.com/dgasmith/opt_einsum) (tested on 3.3.0)
 * wandb
