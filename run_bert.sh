@@ -1,0 +1,1 @@
+python train.py --transformer_type bert --model_name_or_path bert-base-cased --learning_rate 5e-5
