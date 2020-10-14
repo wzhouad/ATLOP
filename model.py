@@ -6,7 +6,7 @@ from losses import ATLoss
 
 
 class DocREModel(nn.Module):
-    def __init__(self, config, model, loss_fnt, emb_size=768, block_size=64, num_labels=-1):
+    def __init__(self, config, model, emb_size=768, block_size=64, num_labels=-1):
         super().__init__()
         self.config = config
         self.model = model

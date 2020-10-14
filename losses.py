@@ -8,15 +8,13 @@ class ATLoss(nn.Module):
         super().__init__()
 
     def forward(self, logits, labels):
-        na_mask = ((labels[:, 0]) == 0.0).to(logits)
-
         # TH label
         th_label = torch.zeros_like(labels, dtype=torch.float).to(labels)
         th_label[:, 0] = 1.0
         labels[:, 0] = 0.0
 
         p_mask = labels + th_label
-        n_mask = (1 - labels) + th_label
+        n_mask = 1 - labels
 
         # Rank positive classes to TH
         logit1 = logits - (1 - p_mask) * 1e30
@@ -27,7 +25,7 @@ class ATLoss(nn.Module):
         loss2 = -(F.log_softmax(logit2, dim=-1) * th_label).sum(1)
 
         # Sum two parts
-        loss = loss1 * na_mask + loss2
+        loss = loss1 + loss2
         loss = loss.mean()
         return loss
 

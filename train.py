@@ -189,6 +189,7 @@ def main():
         args.config_name if args.config_name else args.model_name_or_path,
         num_labels=args.num_class,
     )
+    config.gradient_checkpointing = True
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
     )

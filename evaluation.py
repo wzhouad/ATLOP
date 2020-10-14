@@ -69,10 +69,10 @@ def official_evaluate(tmp):
     if not os.path.exists(truth_dir):
         os.makedirs(truth_dir)
 
-    fact_in_train_annotated = gen_train_facts("./dataset/docred/train_annotated.json", truth_dir)
-    fact_in_train_distant = gen_train_facts("./dataset/docred/train_distant.json", truth_dir)
+    fact_in_train_annotated = gen_train_facts("./dataset/train_annotated.json", truth_dir)
+    fact_in_train_distant = gen_train_facts("./dataset/train_distant.json", truth_dir)
 
-    truth = json.load(open("./dataset/docred/dev.json"))
+    truth = json.load(open("./dataset/dev.json"))
 
     std = {}
     tot_evidences = 0
