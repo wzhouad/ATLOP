@@ -59,26 +59,22 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
                 end = sent_map[m["sent_id"]][m["pos"][1]]
                 entity_pos[-1].append((start, end,))
 
-        relations, hts, multiple = [], [], []
+        relations, hts = [], []
         for h, t in train_triple.keys():
             relation = [0] * len(docred_rel2id)
             for mention in train_triple[h, t]:
                 relation[mention["relation"]] = 1
                 evidence = mention["evidence"]
-            mult = (len(entity_pos[h]) + len(entity_pos[t])) / 2
             relations.append(relation)
             hts.append([h, t])
-            multiple.append(mult)
             pos_samples += 1
 
         for h in range(len(entities)):
             for t in range(len(entities)):
                 if h != t and [h, t] not in hts:
                     relation = [1] + [0] * (len(docred_rel2id) - 1)
-                    mult = (len(entity_pos[h]) + len(entity_pos[t])) / 2
                     relations.append(relation)
                     hts.append([h, t])
-                    multiple.append(mult)
                     neg_samples += 1
 
         assert len(relations) == len(entities) * (len(entities) - 1)
@@ -93,7 +89,6 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
                    'labels': relations,
                    'hts': hts,
                    'title': sample['title'],
-                   'multiple': multiple,
                    }
         features.append(feature)
 
