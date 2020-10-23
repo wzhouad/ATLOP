@@ -1,5 +1,5 @@
 # ATLOP
-Code for paper Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling.
+Code for paper [Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling](https://arxiv.org/abs/2010.11304).
 
 If you make use of this code in your work, please kindly cite the following paper:
 
@@ -8,7 +8,8 @@ If you make use of this code in your work, please kindly cite the following pape
   title={Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling},
   author={Zhou, Wenxuan and Huang, Kevin and Ma, Tengyu and Huang, Jing},
   journal={Arxiv},
-  year={2020}
+  year={2020},
+  volume={abs/2010.11304}
 }
 ```
 
