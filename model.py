@@ -90,13 +90,7 @@ class DocREModel(nn.Module):
                 entity_pos=None,
                 hts=None,
                 instance_mask=None,
-                index=None,
                 ):
-        index = index.cpu().numpy().tolist()
-        if labels is not None:
-            labels = [labels[i] for i in index]
-        entity_pos = [entity_pos[i] for i in index]
-        hts = [hts[i] for i in index]
 
         sequence_output, attention = self.encode(input_ids, attention_mask)
         hs, rs, ts = self.get_hrt(sequence_output, attention, entity_pos, hts)

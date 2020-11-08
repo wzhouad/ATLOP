@@ -3,7 +3,6 @@ import os
 
 import numpy as np
 import torch
-import torch.nn as nn
 from apex import amp
 import ujson as json
 from torch.utils.data import DataLoader
@@ -35,12 +34,9 @@ def train(args, model, train_features, dev_features, test_features):
                           'labels': batch[2],
                           'entity_pos': batch[3],
                           'hts': batch[4],
-                          'index': batch[5].to(args.device),
                           }
                 outputs = model(**inputs)
                 loss = outputs[0] / args.gradient_accumulation_steps
-                if args.n_gpu > 1:
-                    loss = loss.mean()
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
                 if step % args.gradient_accumulation_steps == 0:
@@ -72,8 +68,6 @@ def train(args, model, train_features, dev_features, test_features):
 
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1", verbosity=0)
-    if args.n_gpu > 1:
-        model = nn.DataParallel(model)
     num_steps = 0
     set_seed(args)
     model.zero_grad()
@@ -91,7 +85,6 @@ def evaluate(args, model, features, tag="dev"):
                   'attention_mask': batch[1].to(args.device),
                   'entity_pos': batch[3],
                   'hts': batch[4],
-                  'index': batch[5].to(args.device),
                   }
 
         with torch.no_grad():
@@ -122,7 +115,6 @@ def report(args, model, features):
                   'attention_mask': batch[1].to(args.device),
                   'entity_pos': batch[3],
                   'hts': batch[4],
-                  'index': batch[5].to(args.device),
                   }
 
         with torch.no_grad():
