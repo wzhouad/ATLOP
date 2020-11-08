@@ -5,14 +5,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 from apex import amp
-import ujson as json
 from torch.utils.data import DataLoader
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup
 from model import DocREModel
 from utils import set_seed, collate_fn
-from prepro import read_docred
-from evaluation import to_official, official_evaluate
+from prepro import read_cdr, read_gda
 import wandb
 
 
@@ -53,15 +51,16 @@ def train(args, model, train_features, dev_features, test_features):
                 wandb.log({"loss": loss.item()}, step=num_steps)
                 if (step + 1) == len(train_dataloader) - 1 or (args.evaluation_steps > 0 and num_steps % args.evaluation_steps == 0 and step % args.gradient_accumulation_steps == 0):
                     dev_score, dev_output = evaluate(args, model, dev_features, tag="dev")
-                    wandb.log(dev_output, step=num_steps)
+                    test_score, test_output = evaluate(args, model, test_features, tag="test")
                     print(dev_output)
+                    print(test_output)
+                    wandb.log(dev_output, step=num_steps)
+                    wandb.log(test_output, step=num_steps)
                     if dev_score > best_score:
                         best_score = dev_score
-                        pred = report(args, model, test_features)
-                        with open("result.json", "w") as fh:
-                            json.dump(pred, fh)
                         if args.save_path != "":
                             torch.save(model.state_dict(), args.save_path)
+
         return num_steps
 
     new_layer = ["extractor", "bilinear"]
@@ -83,7 +82,7 @@ def train(args, model, train_features, dev_features, test_features):
 def evaluate(args, model, features, tag="dev"):
 
     dataloader = DataLoader(features, batch_size=args.test_batch_size, shuffle=False, collate_fn=collate_fn, drop_last=False)
-    preds = []
+    preds, golds = [], []
     for batch in dataloader:
         model.eval()
 
@@ -99,53 +98,33 @@ def evaluate(args, model, features, tag="dev"):
             pred = pred.cpu().numpy()
             pred[np.isnan(pred)] = 0
             preds.append(pred)
+            golds.append(np.concatenate([np.array(label, np.float32) for label in batch[2]], axis=0))
 
     preds = np.concatenate(preds, axis=0).astype(np.float32)
-    ans = to_official(preds, features)
-    if len(ans) > 0:
-        best_f1, _, best_f1_ign, _ = official_evaluate(ans, args.data_dir)
+    golds = np.concatenate(golds, axis=0).astype(np.float32)
+
+    tp = ((preds[:, 1] == 1) & (golds[:, 1] == 1)).astype(np.float32).sum()
+    tn = ((golds[:, 1] == 1) & (preds[:, 1] != 1)).astype(np.float32).sum()
+    fp = ((preds[:, 1] == 1) & (golds[:, 1] != 1)).astype(np.float32).sum()
+    precision = tp / (tp + fp + 1e-5)
+    recall = tp / (tp + tn + 1e-5)
+    f1 = 2 * precision * recall / (precision + recall + 1e-5)
     output = {
-        tag + "_F1": best_f1 * 100,
-        tag + "_F1_ign": best_f1_ign * 100,
+        "{}_f1".format(tag): f1 * 100,
     }
-    return best_f1, output
-
-
-def report(args, model, features):
-
-    dataloader = DataLoader(features, batch_size=args.test_batch_size, shuffle=False, collate_fn=collate_fn, drop_last=False)
-    preds = []
-    for batch in dataloader:
-        model.eval()
-
-        inputs = {'input_ids': batch[0].to(args.device),
-                  'attention_mask': batch[1].to(args.device),
-                  'entity_pos': batch[3],
-                  'hts': batch[4],
-                  'index': batch[5].to(args.device),
-                  }
-
-        with torch.no_grad():
-            pred, *_ = model(**inputs)
-            pred = pred.cpu().numpy()
-            pred[np.isnan(pred)] = 0
-            preds.append(pred)
-
-    preds = np.concatenate(preds, axis=0).astype(np.float32)
-    preds = to_official(preds, features)
-    return preds
+    return f1, output
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--data_dir", default="./dataset/docred", type=str)
+    parser.add_argument("--data_dir", default="./dataset/cdr", type=str)
     parser.add_argument("--transformer_type", default="bert", type=str)
-    parser.add_argument("--model_name_or_path", default="bert-base-cased", type=str)
+    parser.add_argument("--model_name_or_path", default="allenai/scibert_scivocab_cased", type=str)
 
-    parser.add_argument("--train_file", default="train_annotated.json", type=str)
-    parser.add_argument("--dev_file", default="dev.json", type=str)
-    parser.add_argument("--test_file", default="test.json", type=str)
+    parser.add_argument("--train_file", default="train_filter.data", type=str)
+    parser.add_argument("--dev_file", default="dev_filter.data", type=str)
+    parser.add_argument("--test_file", default="test_filter.data", type=str)
     parser.add_argument("--save_path", default="", type=str)
     parser.add_argument("--load_path", default="", type=str)
 
@@ -163,9 +142,9 @@ def main():
                         help="Batch size for testing.")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
-    parser.add_argument("--num_labels", default=4, type=int,
-                        help="Max number of labels in prediction.")
-    parser.add_argument("--learning_rate", default=5e-5, type=float,
+    parser.add_argument("--num_labels", default=1, type=int,
+                        help="Max number of labels in the prediction.")
+    parser.add_argument("--learning_rate", default=2e-5, type=float,
                         help="The initial learning rate for Adam.")
     parser.add_argument("--adam_epsilon", default=1e-6, type=float,
                         help="Epsilon for Adam optimizer.")
@@ -178,12 +157,12 @@ def main():
     parser.add_argument("--evaluation_steps", default=-1, type=int,
                         help="Number of training steps between evaluations.")
     parser.add_argument("--seed", type=int, default=66,
-                        help="random seed for initialization")
-    parser.add_argument("--num_class", type=int, default=97,
+                        help="random seed for initialization.")
+    parser.add_argument("--num_class", type=int, default=2,
                         help="Number of relation types in dataset.")
 
     args = parser.parse_args()
-    wandb.init(project="DocRED")
+    wandb.init(project="CDR")
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     args.n_gpu = torch.cuda.device_count()
@@ -197,7 +176,7 @@ def main():
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
     )
 
-    read = read_docred
+    read = read_cdr if "cdr" in args.data_dir else read_gda
 
     train_file = os.path.join(args.data_dir, args.train_file)
     dev_file = os.path.join(args.data_dir, args.dev_file)
@@ -220,16 +199,15 @@ def main():
     model = DocREModel(config, model, num_labels=args.num_labels)
     model.to(0)
 
-    if args.load_path == "":  # Training
+    if args.load_path == "":
         train(args, model, train_features, dev_features, test_features)
-    else:  # Testing
+    else:
         model = amp.initialize(model, opt_level="O1", verbosity=0)
         model.load_state_dict(torch.load(args.load_path))
         dev_score, dev_output = evaluate(args, model, dev_features, tag="dev")
+        test_score, test_output = evaluate(args, model, test_features, tag="test")
         print(dev_output)
-        pred = report(args, model, test_features)
-        with open("result.json", "w") as fh:
-            json.dump(pred, fh)
+        print(test_output)
 
 
 if __name__ == "__main__":

@@ -34,6 +34,7 @@ class DocREModel(nn.Module):
 
     def get_hrt(self, sequence_output, attention, entity_pos, hts):
         offset = 1 if self.config.transformer_type in ["bert", "roberta"] else 0
+        n, h, _, c = attention.size()
         hss, tss, rss = [], [], []
         for i in range(len(entity_pos)):
             entity_embs, entity_atts = [], []
@@ -41,15 +42,24 @@ class DocREModel(nn.Module):
                 if len(e) > 1:
                     e_emb, e_att = [], []
                     for start, end in e:
-                        e_emb.append(sequence_output[i, start + offset])
-                        e_att.append(attention[i, :, start + offset])
-                    e_emb = torch.logsumexp(torch.stack(e_emb, dim=0), dim=0)
-                    e_att = torch.stack(e_att, dim=0).mean(0)
+                        if start + offset < c:
+                            # In case the entity mention is truncated due to limited max seq length.
+                            e_emb.append(sequence_output[i, start + offset])
+                            e_att.append(attention[i, :, start + offset])
+                    if len(e_emb) > 0:
+                        e_emb = torch.logsumexp(torch.stack(e_emb, dim=0), dim=0)
+                        e_att = torch.stack(e_att, dim=0).mean(0)
+                    else:
+                        e_emb = torch.zeros(self.config.hidden_size).to(sequence_output)
+                        e_att = torch.zeros(h, c).to(attention)
                 else:
                     start, end = e[0]
-                    e_emb = sequence_output[i, start + offset]
-                    e_att = attention[i, :, start + offset]
-
+                    if start + offset < c:
+                        e_emb = sequence_output[i, start + offset]
+                        e_att = attention[i, :, start + offset]
+                    else:
+                        e_emb = torch.zeros(self.config.hidden_size).to(sequence_output)
+                        e_att = torch.zeros(h, c).to(attention)
                 entity_embs.append(e_emb)
                 entity_atts.append(e_att)
 

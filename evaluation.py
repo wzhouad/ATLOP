@@ -59,20 +59,19 @@ def gen_train_facts(data_file_name, truth_dir):
     return fact_in_train
 
 
-def official_evaluate(tmp):
+def official_evaluate(tmp, path):
     '''
         Adapted from the official evaluation code
     '''
-    input_dir = "./dataset"
-    truth_dir = os.path.join(input_dir, 'ref')
+    truth_dir = os.path.join(path, 'ref')
 
     if not os.path.exists(truth_dir):
         os.makedirs(truth_dir)
 
-    fact_in_train_annotated = gen_train_facts("./dataset/train_annotated.json", truth_dir)
-    fact_in_train_distant = gen_train_facts("./dataset/train_distant.json", truth_dir)
+    fact_in_train_annotated = gen_train_facts(os.path.join(path, "train_annotated.json"), truth_dir)
+    fact_in_train_distant = gen_train_facts(os.path.join(path, "train_distant.json"), truth_dir)
 
-    truth = json.load(open("./dataset/dev.json"))
+    truth = json.load(open(os.path.join(path, "dev.json")))
 
     std = {}
     tot_evidences = 0
