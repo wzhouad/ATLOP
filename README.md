@@ -14,8 +14,10 @@ If you make use of this code in your work, please kindly cite the following pape
 ```
 ## Requirements
 * Python (tested on 3.7.4)
+* CUDA (tested on 10.2)
 * [PyTorch](http://pytorch.org/) (tested on 1.7.0)
 * [Transformers](https://github.com/huggingface/transformers) (tested on 3.4.0)
+* numpy (tested on 1.19.4)
 * [apex](https://github.com/NVIDIA/apex) (tested on 0.1)
 * [opt-einsum](https://github.com/dgasmith/opt_einsum) (tested on 3.3.0)
 * wandb
