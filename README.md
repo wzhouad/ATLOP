@@ -4,12 +4,11 @@ Code for AAAI 2021 paper [Document-Level Relation Extraction with Adaptive Thres
 If you make use of this code in your work, please kindly cite the following paper:
 
 ```bibtex
-@article{zhou2020atlop,
-  title={Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling},
-  author={Zhou, Wenxuan and Huang, Kevin and Ma, Tengyu and Huang, Jing},
-  journal={Arxiv},
-  year={2020},
-  volume={abs/2010.11304}
+@inproceedings{zhou2021atlop,
+	title={Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling,
+	author={Zhou, Wenxuan and Huang, Kevin and Ma, Tengyu and Huang, Jing},
+	booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+	year={2021}
 }
 ```
 ## Requirements
