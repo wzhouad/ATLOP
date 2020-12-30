@@ -5,7 +5,7 @@ If you make use of this code in your work, please kindly cite the following pape
 
 ```bibtex
 @inproceedings{zhou2021atlop,
-	title={Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling,
+	title={Document-Level Relation Extraction with Adaptive Thresholding and Localized Context Pooling},
 	author={Zhou, Wenxuan and Huang, Kevin and Ma, Tengyu and Huang, Jing},
 	booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
 	year={2021}
