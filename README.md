@@ -24,7 +24,7 @@ If you make use of this code in your work, please kindly cite the following pape
 * tqdm
 
 ## Dataset
-The [DocRED](https://www.aclweb.org/anthology/P19-1074/) dataset can be downloaded following the instructions at [link](https://github.com/thunlp/DocRED/tree/master/data). The CDR and GDA datasets can be obtained following the intructions in [edge-oriented graph](https://github.com/fenchri/edge-oriented-graph). The expected structure of files is:
+The [DocRED](https://www.aclweb.org/anthology/P19-1074/) dataset can be downloaded following the instructions at [link](https://github.com/thunlp/DocRED/tree/master/data). The CDR and GDA datasets can be obtained following the instructions in [edge-oriented graph](https://github.com/fenchri/edge-oriented-graph). The expected structure of files is:
 ```
 ATLOP
  |-- dataset
@@ -54,7 +54,7 @@ Train the BERT model on DocRED with the following command:
 >> sh scripts/run_roberta.sh  # for RoBERTa
 ```
 
-The training loss and evaluation scores on the development set are automatically synced to the wandb dashboard.
+The training loss and evaluation results on the dev set are synced to the wandb dashboard.
 
 The program will generate a test file `result.json` in the official evaluation format. You can compress and submit it to Colab for the official test score.
 
@@ -65,7 +65,7 @@ Train CDA and GDA model with the following command:
 >> sh scripts/run_gda.sh  # for GDA
 ```
 
-The training loss and evaluations scores on the development set and test set are automatically syned to the wandb dashboard.
+The training loss and evaluation results on the dev and test set are synced to the wandb dashboard.
 
 ## Saving and Evaluating Models
-You can save the trained model by setting the `--save_path` argument in training. The saved model is the model which achieves the best result on the development set. You can evaluate your model by setting the `--load_path` argument, then the code will skip training and evaluate the saved model on benchmarks.
+You can save the model by setting the `--save_path` argument before training. The model correponds to the best dev results will be saved. After that, You can evaluate the saved model by setting the `--load_path` argument, then the code will skip training and evaluate the saved model on benchmarks. I've also released the trained `atlop-bert-case` and `atlop-roberta` models.
