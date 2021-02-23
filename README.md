@@ -68,4 +68,4 @@ Train CDA and GDA model with the following command:
 The training loss and evaluation results on the dev and test set are synced to the wandb dashboard.
 
 ## Saving and Evaluating Models
-You can save the model by setting the `--save_path` argument before training. The model correponds to the best dev results will be saved. After that, You can evaluate the saved model by setting the `--load_path` argument, then the code will skip training and evaluate the saved model on benchmarks. I've also released the trained `atlop-bert-case` and `atlop-roberta` models.
+You can save the model by setting the `--save_path` argument before training. The model correponds to the best dev results will be saved. After that, You can evaluate the saved model by setting the `--load_path` argument, then the code will skip training and evaluate the saved model on benchmarks. I've also released the trained `atlop-bert-base` and `atlop-roberta` models.
