@@ -346,6 +346,8 @@ def red_docred_relinfo(file_in, tokenizer):
     input_ids = tokenizer.convert_tokens_to_ids(rels)
     input_ids = tokenizer.build_inputs_with_special_tokens(input_ids)
 
-    feature = {'input_ids': input_ids}
+    feature = {'input_ids': input_ids,
+               'rel_pos': rel_pos,
+                }
     return feature
     

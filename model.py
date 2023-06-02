@@ -3,7 +3,50 @@ import torch.nn as nn
 from opt_einsum import contract
 from long_seq import process_long_input
 from losses import ATLoss
+import torch.nn.functional as F
+import numpy as np
 
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, query_dim, key_dim, all_head_dim, num_heads):
+        super().__init__()
+        self.query_dim = query_dim
+        self.key_dim = key_dim
+        self.all_head_dim = all_head_dim
+        self.num_heads = num_heads
+        
+ 
+        self.W_query = nn.Linear(in_features=query_dim, out_features=all_head_dim)
+        self.W_key = nn.Linear(in_features=key_dim, out_features=all_head_dim)
+        self.W_value = nn.Linear(in_features=key_dim, out_features=all_head_dim)
+ 
+    def forward(self, query, key, mask=None):
+        querys = self.W_query(query)  # [B, N_q, all_head_dim]
+        keys = self.W_key(key)  # [B, N_k, all_head_dim]
+        values = self.W_value(key)
+ 
+        head_size = self.all_head_dim // self.num_heads
+        querys = torch.stack(torch.split(querys, head_size, dim=2), dim=0)  # [h, B, N_q, all_head_dim/h]
+        keys = torch.stack(torch.split(keys, head_size, dim=2), dim=0)  # [h, B, N_k, all_head_dim/h]
+        values = torch.stack(torch.split(values, head_size, dim=2), dim=0)  # [h, B, N_k, all_head_dim/h]
+ 
+        ## score = softmax(QK^T / (d_k ** 0.5))
+        scores = torch.matmul(querys, keys.transpose(2, 3))  # [h, B, N_q, N_k]
+        scores = scores / (self.key_dim ** 0.5)
+ 
+        ## mask
+        if mask is not None:
+            ## mask:  [B, N_k] --> [h, B, N_q, N_k]
+            mask = mask.unsqueeze(1).unsqueeze(0).repeat(self.num_heads, 1, querys.shape[2], 1)
+            scores = scores.masked_fill(mask!=1, -np.inf)
+        scores = F.softmax(scores, dim=3)
+ 
+        ## out = score * V
+        out = torch.matmul(scores, values)  # [h, B, N_q, all_head_dim/h]
+        out = torch.cat(torch.split(out, 1, dim=0), dim=3).squeeze(0)  # [B, N_q, all_head_dim]
+ 
+        return out, scores
+    
 
 class DocREModel(nn.Module):
     def __init__(self, config, model, emb_size=768, block_size=64, num_labels=-1):
@@ -13,9 +56,15 @@ class DocREModel(nn.Module):
         self.hidden_size = config.hidden_size
         self.loss_fnt = ATLoss()
 
-        self.head_extractor = nn.Linear(2 * config.hidden_size, emb_size)
-        self.tail_extractor = nn.Linear(2 * config.hidden_size, emb_size)
-        self.bilinear = nn.Linear(emb_size * block_size, config.num_labels)
+        self.head_extractor = nn.Linear(2 * config.hidden_size, config.hidden_size)
+        self.tail_extractor = nn.Linear(2 * config.hidden_size, config.hidden_size)
+        self.entity_rel_interactor = MultiHeadAttention(config.hidden_size,
+                                                        config.hidden_size,
+                                                        config.hidden_size,
+                                                        config.num_attention_heads)
+        # self.bilinear = nn.Linear(emb_size * block_size, config.num_labels)
+        self.entity_pair_classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.rel_calssifier = nn.Linear(config.hidden_size, 2)
 
         self.emb_size = emb_size
         self.block_size = block_size
@@ -90,22 +139,32 @@ class DocREModel(nn.Module):
                 entity_pos=None,
                 hts=None,
                 instance_mask=None,
+                rel_ids=None,
+                rel_attention_mask=None,
+                rel_pos=None,
                 ):
 
-        sequence_output, attention = self.encode(input_ids, attention_mask)
-        hs, rs, ts = self.get_hrt(sequence_output, attention, entity_pos, hts)
+        sequence_output, sequence_attention = self.encode(input_ids, attention_mask)
+        hs, rs, ts = self.get_hrt(sequence_output, sequence_attention, entity_pos, hts)
 
         hs = torch.tanh(self.head_extractor(torch.cat([hs, rs], dim=1)))
         ts = torch.tanh(self.tail_extractor(torch.cat([ts, rs], dim=1)))
-        b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
-        b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
-        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size) # [1310, 12*64*64]
-        logits = self.bilinear(bl) # 1310 * 97
+        hts = hs + ts
+        # b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
+        # b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
+        # bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size) # [1310, 12*64*64]
+        # logits = self.bilinear(bl) # 1310 * 97
+        rels = self.encode(rel_ids, rel_attention_mask)[rel_pos]
+        
+        hts = self.entity_rel_interactor(hts, rels)
+        rels = self.entity_rel_interactor(rels, hts)
 
-        output = (self.loss_fnt.get_label(logits, num_labels=self.num_labels),)
+        hts_logits = self.entity_pair_classifier(hts)
+
+        output = (self.loss_fnt.get_label(hts_logits, num_labels=self.num_labels),)
         if labels is not None:
             labels = [torch.tensor(label) for label in labels]
-            labels = torch.cat(labels, dim=0).to(logits)
-            loss = self.loss_fnt(logits.float(), labels.float())
+            labels = torch.cat(labels, dim=0).to(hts_logits)
+            loss = self.loss_fnt(hts_logits.float(), labels.float())
             output = (loss.to(sequence_output),) + output
         return output

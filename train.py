@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 import numpy as np
 import torch
@@ -18,8 +18,8 @@ from evaluation import to_official, official_evaluate
 import wandb
 
 
-def train(args, model, train_features, dev_features, test_features):
-    def finetune(features, optimizer, num_epoch, num_steps):
+def train(args, model, train_features, dev_features, test_features, relinfo_features):
+    def finetune(features, relinfo_features, optimizer, num_epoch, num_steps):
         best_score = -1
         train_dataloader = DataLoader(features, batch_size=args.train_batch_size, shuffle=True, collate_fn=collate_fn, drop_last=True) # 训练集有一个数据会被drop
         train_iterator = range(int(num_epoch))
@@ -37,6 +37,8 @@ def train(args, model, train_features, dev_features, test_features):
                           'labels': batch[2],
                           'entity_pos': batch[3],
                           'hts': batch[4],
+                          'label_ids': torch.tensor(relinfo_features['input_ids'], dtype=torch.long).to(args.device),
+                          'rel_pos': relinfo_features['rel_pos'],
                           }
                 outputs = model(**inputs)
                 loss = outputs[0] / args.gradient_accumulation_steps
@@ -52,7 +54,7 @@ def train(args, model, train_features, dev_features, test_features):
                     num_steps += 1
                 wandb.log({"loss": loss.item()}, step=num_steps)
                 wandb.log({"lm_lr": lm_lr, "classifier_lr": classifier_lr}, step=num_steps)
-                # print("[{}] step {}/{}: loss = {:.5f}".format(str(datetime.now()), num_steps, total_steps, loss.item()))
+                print("[{}] step {}/{}: loss = {:.5f}".format(str(datetime.now()), num_steps, total_steps, loss.item()))
                 if (step + 1) == len(train_dataloader) - 1 or (args.evaluation_steps > 0 and num_steps % args.evaluation_steps == 0 and step % args.gradient_accumulation_steps == 0):
                     dev_score, dev_output = evaluate(args, model, dev_features, tag="dev")
                     wandb.log(dev_output, step=num_steps)
@@ -79,7 +81,7 @@ def train(args, model, train_features, dev_features, test_features):
     num_steps = 0
     set_seed(args)
     model.zero_grad()
-    finetune(train_features, optimizer, args.num_train_epochs, num_steps)
+    finetune(train_features, relinfo_features, optimizer, args.num_train_epochs, num_steps)
 
 
 def evaluate(args, model, features, tag="dev"):
@@ -185,7 +187,6 @@ def main():
                         help="Number of relation types in dataset.")
 
     args = parser.parse_args()
-    #wandb.init(project="DocRED")
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     args.n_gpu = torch.cuda.device_count()
@@ -196,7 +197,8 @@ def main():
         num_labels=args.num_class,
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        # args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
+        "/data1/jiantingtang/.cache/huggingface/hub/models--roberta-large/snapshots/716877d372b884cad6d419d828bac6c85b3b18d9/"
     )
 
     suffix = '.{}.pt'.format(args.model_name_or_path)
@@ -239,7 +241,8 @@ def main():
         print('Created and saved new relinfo_file features')
 
     model = AutoModel.from_pretrained(
-        args.model_name_or_path,
+        #args.model_name_or_path,
+        "/data1/jiantingtang/.cache/huggingface/hub/models--roberta-large/snapshots/716877d372b884cad6d419d828bac6c85b3b18d9",
         from_tf=bool(".ckpt" in args.model_name_or_path),
         config=config,
     )
@@ -252,8 +255,9 @@ def main():
     model = DocREModel(config, model, num_labels=args.num_labels)
     model.to(args.device)
 
+    wandb.init(project="DocRED")
     if args.load_path == "":  # Training
-        train(args, model, train_features, dev_features, test_features)
+        train(args, model, train_features, dev_features, test_features, relinfo_features)
     else:  # Testing
         model = amp.initialize(model, opt_level="O1", verbosity=0)
         model.load_state_dict(torch.load(args.load_path))
