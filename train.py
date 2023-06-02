@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '2'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 import numpy as np
 import torch
@@ -37,7 +37,8 @@ def train(args, model, train_features, dev_features, test_features, relinfo_feat
                           'labels': batch[2],
                           'entity_pos': batch[3],
                           'hts': batch[4],
-                          'label_ids': torch.tensor(relinfo_features['input_ids'], dtype=torch.long).to(args.device),
+                          'rel_ids': torch.tensor(relinfo_features['input_ids'], dtype=torch.long).unsqueeze(0).to(args.device),
+                          'rel_attention_mask': torch.ones(1, len(relinfo_features['input_ids']), dtype=torch.float).to(args.device),
                           'rel_pos': relinfo_features['rel_pos'],
                           }
                 outputs = model(**inputs)
@@ -255,7 +256,7 @@ def main():
     model = DocREModel(config, model, num_labels=args.num_labels)
     model.to(args.device)
 
-    wandb.init(project="DocRED")
+    #wandb.init(project="DocRED")
     if args.load_path == "":  # Training
         train(args, model, train_features, dev_features, test_features, relinfo_features)
     else:  # Testing

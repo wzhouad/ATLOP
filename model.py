@@ -154,17 +154,21 @@ class DocREModel(nn.Module):
         # b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
         # bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size) # [1310, 12*64*64]
         # logits = self.bilinear(bl) # 1310 * 97
-        rels = self.encode(rel_ids, rel_attention_mask)[rel_pos]
+        rels, _ = self.encode(rel_ids, rel_attention_mask)
+        rels = rels.squeeze(0)[rel_pos]
         
-        hts = self.entity_rel_interactor(hts, rels)
-        rels = self.entity_rel_interactor(rels, hts)
+        hts = self.entity_rel_interactor(hts.unsqueeze(0), rels.unsqueeze(0))[0].squeeze(0)
+        rels = self.entity_rel_interactor(rels.unsqueeze(0), hts.unsqueeze(0))[0].squeeze(0)
 
         hts_logits = self.entity_pair_classifier(hts)
+        rels_logits = self.rel_calssifier(rels)
 
         output = (self.loss_fnt.get_label(hts_logits, num_labels=self.num_labels),)
         if labels is not None:
             labels = [torch.tensor(label) for label in labels]
             labels = torch.cat(labels, dim=0).to(hts_logits)
             loss = self.loss_fnt(hts_logits.float(), labels.float())
+
             output = (loss.to(sequence_output),) + output
+
         return output
