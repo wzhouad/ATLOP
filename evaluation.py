@@ -30,7 +30,7 @@ def to_official(preds, features):
                         'r': id2rel[p],
                     }
                 )
-    return res
+    return res  # 所有存在关系的entity pair
 
 
 def gen_train_facts(data_file_name, truth_dir):
@@ -46,7 +46,7 @@ def gen_train_facts(data_file_name, truth_dir):
 
     fact_in_train = set([])
     ori_data = json.load(open(data_file_name))
-    for data in ori_data:
+    for data in ori_data:  # 得到所有mention pair和对应的关系
         vertexSet = data['vertexSet']
         for label in data['labels']:
             rel = label['r']

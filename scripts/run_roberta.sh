@@ -1,9 +1,12 @@
 python train.py --data_dir ./dataset/docred \
 --transformer_type roberta \
 --model_name_or_path roberta-large \
+--save_path checkpoints/roberta-model.pt \
+--save_last checkpoints/roberta-model-last.pt \
 --train_file train_annotated.json \
 --dev_file dev.json \
 --test_file test.json \
+--relinfo_file rel_info.json \
 --train_batch_size 4 \
 --test_batch_size 8 \
 --gradient_accumulation_steps 1 \

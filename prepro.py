@@ -30,7 +30,7 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
 
         entities = sample['vertexSet']
         entity_start, entity_end = [], []
-        for entity in entities:
+        for entity in entities:         # 得到所有entity mention的始末位置
             for mention in entity:
                 sent_id = mention["sent_id"]
                 pos = mention["pos"]
@@ -45,23 +45,23 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
                 if (i_s, i_t) in entity_end:
                     tokens_wordpiece = tokens_wordpiece + ["*"]
                 new_map[i_t] = len(sents)
-                sents.extend(tokens_wordpiece)
+                sents.extend(tokens_wordpiece)  # sents为原文token列表
             new_map[i_t + 1] = len(sents)
-            sent_map.append(new_map)
+            sent_map.append(new_map)  # 可根据sent_map确定某个句子某个单词在文章token列表sents中的位置
 
         train_triple = {}
         if "labels" in sample:
             for label in sample['labels']:
                 evidence = label['evidence']
                 r = int(docred_rel2id[label['r']])
-                if (label['h'], label['t']) not in train_triple:
+                if (label['h'], label['t']) not in train_triple:  # label['h']为entity的序号
                     train_triple[(label['h'], label['t'])] = [
                         {'relation': r, 'evidence': evidence}]
                 else:
                     train_triple[(label['h'], label['t'])].append(
                         {'relation': r, 'evidence': evidence})
 
-        entity_pos = []
+        entity_pos = []     # 所有entity mention在文章token中的位置
         for e in entities:
             entity_pos.append([])
             for m in e:
@@ -69,36 +69,36 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
                 end = sent_map[m["sent_id"]][m["pos"][1]]
                 entity_pos[-1].append((start, end,))
 
-        relations, hts = [], []
-        for h, t in train_triple.keys():
+        relations, hts = [], []  # 所有entity pair对应的关系
+        for h, t in train_triple.keys():    # 存在关系的entity pair对应的关系
             relation = [0] * len(docred_rel2id)
             for mention in train_triple[h, t]:
                 relation[mention["relation"]] = 1
                 evidence = mention["evidence"]
             relations.append(relation)
             hts.append([h, t])
-            pos_samples += 1
+            pos_samples += 1  # 存在关系的entity pair的数量
 
-        for h in range(len(entities)):
+        for h in range(len(entities)):      # 不存在关系的entity pair对应的关系
             for t in range(len(entities)):
                 if h != t and [h, t] not in hts:
-                    relation = [1] + [0] * (len(docred_rel2id) - 1)
+                    relation = [1] + [0] * (len(docred_rel2id) - 1) # relation[0]==1代表无关系
                     relations.append(relation)
                     hts.append([h, t])
-                    neg_samples += 1
+                    neg_samples += 1  # 不存在关系的entity pair的数量
 
         assert len(relations) == len(entities) * (len(entities) - 1)
 
-        sents = sents[:max_seq_length - 2]
+        sents = sents[:max_seq_length - 2] # 文章首尾各有一个特殊字符
         input_ids = tokenizer.convert_tokens_to_ids(sents)
         input_ids = tokenizer.build_inputs_with_special_tokens(input_ids)
 
         i_line += 1
-        feature = {'input_ids': input_ids,
-                   'entity_pos': entity_pos,
-                   'labels': relations,
-                   'hts': hts,
-                   'title': sample['title'],
+        feature = {'input_ids': input_ids, # [bos] 原文token [eos]
+                   'entity_pos': entity_pos, # 二维列表，entity_pos[0]为第0个entity所有mention在input_ids中的位置
+                   'labels': relations, # n*(n-1)个entity pair对应的关系
+                   'hts': hts, # n*(n-1)个entity pair
+                   'title': sample['title'], # 文章标题，为str
                    }
         features.append(feature)
 
@@ -328,3 +328,24 @@ def read_gda(file_in, tokenizer, max_seq_length=1024):
     print("Number of documents: {}.".format(len(features)))
     print("Max document length: {}.".format(maxlen))
     return features
+
+def red_docred_relinfo(file_in, tokenizer):
+    if file_in == "":
+        return None
+    with open(file_in, "r") as fh:
+        data = json.load(fh)
+    
+    id_rels = [(docred_rel2id[d], d, data[d]) for d in data]
+    id_rels.sort(key=lambda x: x[0])
+    id_rels = [(0, "", 'no relation')] + id_rels
+    rels, rel_pos = [], []
+    for item in id_rels:
+        rel_pos.append(len(rels)+1)
+        rels.extend(["*"]+tokenizer.tokenize(item[2])+["*"])
+
+    input_ids = tokenizer.convert_tokens_to_ids(rels)
+    input_ids = tokenizer.build_inputs_with_special_tokens(input_ids)
+
+    feature = {'input_ids': input_ids}
+    return feature
+    

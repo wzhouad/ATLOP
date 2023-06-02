@@ -22,3 +22,8 @@ def collate_fn(batch):
     input_mask = torch.tensor(input_mask, dtype=torch.float)
     output = (input_ids, input_mask, labels, entity_pos, hts)
     return output
+
+def get_lr(optimizer):
+    lm_lr = optimizer.param_groups[0]['lr']
+    classifier_lr = optimizer.param_groups[1]['lr']
+    return lm_lr, classifier_lr

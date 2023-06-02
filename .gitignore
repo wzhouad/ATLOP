@@ -1,3 +1,10 @@
 
 *.json
 *.pyc
+
+/__pycache__
+/.vscode
+/checkpoints
+/dataset
+/meta
+/wandb

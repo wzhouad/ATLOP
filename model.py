@@ -73,7 +73,7 @@ class DocREModel(nn.Module):
             h_att = torch.index_select(entity_atts, 0, ht_i[:, 0])
             t_att = torch.index_select(entity_atts, 0, ht_i[:, 1])
             ht_att = (h_att * t_att).mean(1)
-            ht_att = ht_att / (ht_att.sum(1, keepdim=True) + 1e-5)
+            ht_att = ht_att / (ht_att.sum(1, keepdim=True) + 1e-5) 
             rs = contract("ld,rl->rd", sequence_output[i], ht_att)
             hss.append(hs)
             tss.append(ts)
@@ -97,10 +97,10 @@ class DocREModel(nn.Module):
 
         hs = torch.tanh(self.head_extractor(torch.cat([hs, rs], dim=1)))
         ts = torch.tanh(self.tail_extractor(torch.cat([ts, rs], dim=1)))
-        b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size)
-        b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size)
-        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size)
-        logits = self.bilinear(bl)
+        b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
+        b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
+        bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size) # [1310, 12*64*64]
+        logits = self.bilinear(bl) # 1310 * 97
 
         output = (self.loss_fnt.get_label(logits, num_labels=self.num_labels),)
         if labels is not None:

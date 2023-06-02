@@ -16,8 +16,8 @@ def process_long_input(model, input_ids, attention_mask, start_tokens, end_token
             attention_mask=attention_mask,
             output_attentions=True,
         )
-        sequence_output = output[0]
-        attention = output[-1][-1]
+        sequence_output = output[0] # 词向量 batch_size * c * d_model
+        attention = output[-1][-1] # 最后一层的attention map, batch_size * head_num * c * c
     else:
         new_input_ids, new_attention_mask, num_seg = [], [], []
         seq_len = attention_mask.sum(1).cpu().numpy().astype(np.int32).tolist()
@@ -66,7 +66,7 @@ def process_long_input(model, input_ids, attention_mask, start_tokens, end_token
                 mask2 = F.pad(mask2, (l_i - 512 + len_start, c - l_i))
                 att2 = F.pad(att2, [l_i - 512 + len_start, c - l_i, l_i - 512 + len_start, c - l_i])
                 mask = mask1 + mask2 + 1e-10
-                output = (output1 + output2) / mask.unsqueeze(-1)
+                output = (output1 + output2) / mask.unsqueeze(-1)   # 两段求平均
                 att = (att1 + att2)
                 att = att / (att.sum(-1, keepdim=True) + 1e-10)
                 new_output.append(output)

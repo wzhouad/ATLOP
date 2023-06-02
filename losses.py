@@ -17,11 +17,11 @@ class ATLoss(nn.Module):
         n_mask = 1 - labels
 
         # Rank positive classes to TH
-        logit1 = logits - (1 - p_mask) * 1e30
+        logit1 = logits - (1 - p_mask) * 1e30  # 无关系的logit变成类似负无穷
         loss1 = -(F.log_softmax(logit1, dim=-1) * labels).sum(1)
 
         # Rank TH to negative classes
-        logit2 = logits - (1 - n_mask) * 1e30
+        logit2 = logits - (1 - n_mask) * 1e30   # 有关系的logit变成类似负无穷
         loss2 = -(F.log_softmax(logit2, dim=-1) * th_label).sum(1)
 
         # Sum two parts
@@ -34,8 +34,8 @@ class ATLoss(nn.Module):
         output = torch.zeros_like(logits).to(logits)
         mask = (logits > th_logit)
         if num_labels > 0:
-            top_v, _ = torch.topk(logits, num_labels, dim=1)
-            top_v = top_v[:, -1]
+            top_v, _ = torch.topk(logits, num_labels, dim=1) # [1310, 4] 从大到小
+            top_v = top_v[:, -1]  # [1310]
             mask = (logits >= top_v.unsqueeze(1)) & mask
         output[mask] = 1.0
         output[:, 0] = (output.sum(1) == 0.).to(logits)
