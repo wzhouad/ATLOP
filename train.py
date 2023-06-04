@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '2'
 
 import numpy as np
 import torch
