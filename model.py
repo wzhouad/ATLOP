@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from torch.nn.modules.normalization import LayerNorm
+from torch.nn.modules.dropout import Dropout
 from opt_einsum import contract
 from long_seq import process_long_input
 from losses import ATLoss
@@ -8,17 +10,19 @@ import numpy as np
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, query_dim, key_dim, all_head_dim, num_heads):
+    def __init__(self, config, query_dim, key_dim, all_head_dim, num_heads):
         super().__init__()
+        self.config = config
         self.query_dim = query_dim
         self.key_dim = key_dim
         self.all_head_dim = all_head_dim
         self.num_heads = num_heads
         
- 
         self.W_query = nn.Linear(in_features=query_dim, out_features=all_head_dim)
         self.W_key = nn.Linear(in_features=key_dim, out_features=all_head_dim)
         self.W_value = nn.Linear(in_features=key_dim, out_features=all_head_dim)
+
+        self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
  
     def forward(self, query, key, mask=None):
         querys = self.W_query(query)  # [B, N_q, all_head_dim]
@@ -37,13 +41,15 @@ class MultiHeadAttention(nn.Module):
         ## mask
         if mask is not None:
             ## mask:  [B, N_k] --> [h, B, N_q, N_k]
-            mask = mask.unsqueeze(1).unsqueeze(0).repeat(self.num_heads, 1, querys.shape[2], 1)
+            mask = mask.unsqueeze(1).unsqueeze(0).repeat(self.num_heads, 1, querys.size(2), 1)
             scores = scores.masked_fill(mask!=1, -np.inf)
         scores = F.softmax(scores, dim=3)
+        #scores = self.dropout(scores)
  
         ## out = score * V
         out = torch.matmul(scores, values)  # [h, B, N_q, all_head_dim/h]
         out = torch.cat(torch.split(out, 1, dim=0), dim=3).squeeze(0)  # [B, N_q, all_head_dim]
+        out = self.dropout(out)
  
         return out, scores
     
@@ -58,13 +64,16 @@ class DocREModel(nn.Module):
 
         self.head_extractor = nn.Linear(2 * config.hidden_size, config.hidden_size)
         self.tail_extractor = nn.Linear(2 * config.hidden_size, config.hidden_size)
-        self.entity_rel_interactor = MultiHeadAttention(config.hidden_size,
+        self.entity_rel_interactor = MultiHeadAttention(config,
+                                                        config.hidden_size,
                                                         config.hidden_size,
                                                         config.hidden_size,
                                                         config.num_attention_heads)
+        
+        self.interactor_norm = LayerNorm(config.hidden_size, eps=1e-5)
         # self.bilinear = nn.Linear(emb_size * block_size, config.num_labels)
         self.entity_pair_classifier = nn.Linear(config.hidden_size, config.num_labels)
-        self.rel_calssifier = nn.Linear(config.hidden_size, 2)
+        self.rel_calssifier = nn.Linear(config.hidden_size, 1)
 
         self.emb_size = emb_size
         self.block_size = block_size
@@ -127,9 +136,9 @@ class DocREModel(nn.Module):
             hss.append(hs)
             tss.append(ts)
             rss.append(rs)
-        hss = torch.cat(hss, dim=0)
-        tss = torch.cat(tss, dim=0)
-        rss = torch.cat(rss, dim=0)
+        # hss = torch.cat(hss, dim=0)
+        # tss = torch.cat(tss, dim=0)
+        # rss = torch.cat(rss, dim=0)
         return hss, rss, tss
 
     def forward(self,
@@ -142,33 +151,63 @@ class DocREModel(nn.Module):
                 rel_ids=None,
                 rel_attention_mask=None,
                 rel_pos=None,
+                rel_labels=None,
                 ):
 
         sequence_output, sequence_attention = self.encode(input_ids, attention_mask)
-        hs, rs, ts = self.get_hrt(sequence_output, sequence_attention, entity_pos, hts)
-
-        hs = torch.tanh(self.head_extractor(torch.cat([hs, rs], dim=1)))
-        ts = torch.tanh(self.tail_extractor(torch.cat([ts, rs], dim=1)))
-        hts = hs + ts
+        hss, rss, tss = self.get_hrt(sequence_output, sequence_attention, entity_pos, hts)
+        hts = []
+        for i in range(input_ids.size(0)):
+            hs = torch.tanh(self.head_extractor(torch.cat([hss[i], rss[i]], dim=1)))
+            ts = torch.tanh(self.tail_extractor(torch.cat([tss[i], rss[i]], dim=1)))
+            hts.append(hs + ts)
         # b1 = hs.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
         # b2 = ts.view(-1, self.emb_size // self.block_size, self.block_size) # [1310, 12, 64]
         # bl = (b1.unsqueeze(3) * b2.unsqueeze(2)).view(-1, self.emb_size * self.block_size) # [1310, 12*64*64]
         # logits = self.bilinear(bl) # 1310 * 97
+        hts_len = [i.size(0) for i in hts]
+        hts = [torch.cat([item, torch.zeros(max(hts_len)-item.size(0), item.size(1), dtype=item.dtype, device=item.device)],
+                          dim=0) for item in hts]
+        hts = torch.stack(hts, dim=0)
+        hts_attn_mask = [torch.cat([torch.ones(i, dtype=torch.float, device=hts.device),
+                                    torch.zeros(max(hts_len)-i, dtype=torch.float, device=hts.device)],
+                                    dim=0) for i in hts_len]
+        hts_attn_mask = torch.stack(hts_attn_mask, dim=0)
+    
         rels, _ = self.encode(rel_ids, rel_attention_mask)
-        rels = rels.squeeze(0)[rel_pos]
-        
-        hts = self.entity_rel_interactor(hts.unsqueeze(0), rels.unsqueeze(0))[0].squeeze(0)
-        rels = self.entity_rel_interactor(rels.unsqueeze(0), hts.unsqueeze(0))[0].squeeze(0)
+        rel_pos = torch.LongTensor(rel_pos).to(rels.device)
+        rels = torch.index_select(rels.squeeze(0), 0, rel_pos)
+
+        rels = rels.repeat(input_ids.size(0), 1, 1)
+        rel_attention_mask = torch.ones(rels.size(0), rels.size(1), dtype=torch.float, device=rels.device)
+
+
+        hts_1 = self.entity_rel_interactor(hts, rels, rel_attention_mask)[0]
+        rels_1 = self.entity_rel_interactor(rels, hts, hts_attn_mask)[0]
+
+
+        hts = self.interactor_norm(hts + hts_1)
+        rels = self.interactor_norm(rels + rels_1)
+
+        hts = hts.view(-1, hts.size(-1))[hts_attn_mask.view(-1)==1]
+        rels = rels.view(-1, rels.size(-1))[rel_attention_mask.view(-1)==1]
 
         hts_logits = self.entity_pair_classifier(hts)
         rels_logits = self.rel_calssifier(rels)
 
+
         output = (self.loss_fnt.get_label(hts_logits, num_labels=self.num_labels),)
-        if labels is not None:
+        if labels is not None and rel_labels is not None:
             labels = [torch.tensor(label) for label in labels]
             labels = torch.cat(labels, dim=0).to(hts_logits)
-            loss = self.loss_fnt(hts_logits.float(), labels.float())
+            hts_loss = self.loss_fnt(hts_logits.float(), labels.float())
+            
+            rels_labels = torch.tensor(rel_labels).view(-1).to(rels_logits)
+            rels_loss_func = nn.BCEWithLogitsLoss(reduction="mean")
+            rels_loss = rels_loss_func(input = rels_logits.squeeze(1), target = rels_labels)
 
-            output = (loss.to(sequence_output),) + output
+            total_loss = hts_loss + rels_loss
+            
+            output = (total_loss.to(sequence_output),) + output
 
         return output

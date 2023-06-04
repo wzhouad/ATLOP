@@ -20,7 +20,9 @@ def collate_fn(batch):
     hts = [f["hts"] for f in batch]
     input_ids = torch.tensor(input_ids, dtype=torch.long)
     input_mask = torch.tensor(input_mask, dtype=torch.float)
-    output = (input_ids, input_mask, labels, entity_pos, hts)
+
+    rel_labels = [f["rel_labels"] for f in batch]
+    output = (input_ids, input_mask, labels, entity_pos, hts, rel_labels)
     return output
 
 def get_lr(optimizer):

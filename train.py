@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 import numpy as np
 import torch
@@ -38,8 +38,9 @@ def train(args, model, train_features, dev_features, test_features, relinfo_feat
                           'entity_pos': batch[3],
                           'hts': batch[4],
                           'rel_ids': torch.tensor(relinfo_features['input_ids'], dtype=torch.long).unsqueeze(0).to(args.device),
-                          'rel_attention_mask': torch.ones(1, len(relinfo_features['input_ids']), dtype=torch.float).to(args.device),
+                          'rel_attention_mask': torch.tensor(relinfo_features['rel_attention_mask'], dtype=torch.float).unsqueeze(0).to(args.device),
                           'rel_pos': relinfo_features['rel_pos'],
+                          'rel_labels': batch[5],
                           }
                 outputs = model(**inputs)
                 loss = outputs[0] / args.gradient_accumulation_steps
@@ -57,12 +58,12 @@ def train(args, model, train_features, dev_features, test_features, relinfo_feat
                 wandb.log({"lm_lr": lm_lr, "classifier_lr": classifier_lr}, step=num_steps)
                 print("[{}] step {}/{}: loss = {:.5f}".format(str(datetime.now()), num_steps, total_steps, loss.item()))
                 if (step + 1) == len(train_dataloader) - 1 or (args.evaluation_steps > 0 and num_steps % args.evaluation_steps == 0 and step % args.gradient_accumulation_steps == 0):
-                    dev_score, dev_output = evaluate(args, model, dev_features, tag="dev")
+                    dev_score, dev_output = evaluate(args, model, dev_features, relinfo_features, tag="dev")
                     wandb.log(dev_output, step=num_steps)
                     print(dev_output)
                     if dev_score > best_score:
                         best_score = dev_score
-                        pred = report(args, model, test_features)
+                        pred = report(args, model, test_features, relinfo_features)
                         with open("result.json", "w") as fh:
                             json.dump(pred, fh)
                         if args.save_path != "":
@@ -71,7 +72,7 @@ def train(args, model, train_features, dev_features, test_features, relinfo_feat
                         torch.save(model.state_dict(), args.save_last)
         return num_steps
 
-    new_layer = ["extractor", "bilinear"]
+    new_layer = ["extractor", "interactor", "entity_pair_classifier", "rel_calssifier"]
     optimizer_grouped_parameters = [
         {"params": [p for n, p in model.named_parameters() if not any(nd in n for nd in new_layer)], },  #  预训练模型
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in new_layer)], "lr": 1e-4}, # 新加的网络
@@ -85,7 +86,7 @@ def train(args, model, train_features, dev_features, test_features, relinfo_feat
     finetune(train_features, relinfo_features, optimizer, args.num_train_epochs, num_steps)
 
 
-def evaluate(args, model, features, tag="dev"):
+def evaluate(args, model, features, relinfo_features, tag="dev"):
 
     dataloader = DataLoader(features, batch_size=args.test_batch_size, shuffle=False, collate_fn=collate_fn, drop_last=False)
     preds = []
@@ -96,6 +97,9 @@ def evaluate(args, model, features, tag="dev"):
                   'attention_mask': batch[1].to(args.device),
                   'entity_pos': batch[3],
                   'hts': batch[4],
+                  'rel_ids': torch.tensor(relinfo_features['input_ids'], dtype=torch.long).unsqueeze(0).to(args.device),
+                  'rel_attention_mask': torch.tensor(relinfo_features['rel_attention_mask'], dtype=torch.float).unsqueeze(0).to(args.device),
+                  'rel_pos': relinfo_features['rel_pos'],
                   }
 
         with torch.no_grad():
@@ -115,7 +119,7 @@ def evaluate(args, model, features, tag="dev"):
     return best_f1, output
 
 
-def report(args, model, features):
+def report(args, model, features, relinfo_features):
 
     dataloader = DataLoader(features, batch_size=args.test_batch_size, shuffle=False, collate_fn=collate_fn, drop_last=False)
     preds = []
@@ -126,6 +130,9 @@ def report(args, model, features):
                   'attention_mask': batch[1].to(args.device),
                   'entity_pos': batch[3],
                   'hts': batch[4],
+                  'rel_ids': torch.tensor(relinfo_features['input_ids'], dtype=torch.long).unsqueeze(0).to(args.device),
+                  'rel_attention_mask': torch.tensor(relinfo_features['rel_attention_mask'], dtype=torch.float).unsqueeze(0).to(args.device),
+                  'rel_pos': relinfo_features['rel_pos'],
                   }
 
         with torch.no_grad():
@@ -145,6 +152,7 @@ def main():
     parser.add_argument("--data_dir", default="./dataset/docred", type=str)
     parser.add_argument("--transformer_type", default="bert", type=str)
     parser.add_argument("--model_name_or_path", default="bert-base-cased", type=str)
+    parser.add_argument("--log_name", default="bert_re", type=str)
 
     parser.add_argument("--train_file", default="train_annotated.json", type=str)
     parser.add_argument("--dev_file", default="dev.json", type=str)
@@ -256,7 +264,7 @@ def main():
     model = DocREModel(config, model, num_labels=args.num_labels)
     model.to(args.device)
 
-    #wandb.init(project="DocRED")
+    wandb.init(project="DocRED", name=args.log_name)
     if args.load_path == "":  # Training
         train(args, model, train_features, dev_features, test_features, relinfo_features)
     else:  # Testing

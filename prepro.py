@@ -89,6 +89,8 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
 
         assert len(relations) == len(entities) * (len(entities) - 1)
 
+        rel_labels = [int(any(col)) for col in zip(*relations)]
+
         sents = sents[:max_seq_length - 2] # 文章首尾各有一个特殊字符
         input_ids = tokenizer.convert_tokens_to_ids(sents)
         input_ids = tokenizer.build_inputs_with_special_tokens(input_ids)
@@ -99,6 +101,7 @@ def read_docred(file_in, tokenizer, max_seq_length=1024):
                    'labels': relations, # n*(n-1)个entity pair对应的关系
                    'hts': hts, # n*(n-1)个entity pair
                    'title': sample['title'], # 文章标题，为str
+                   'rel_labels': rel_labels, # 某关系在该文章中是否出现
                    }
         features.append(feature)
 
@@ -345,8 +348,10 @@ def red_docred_relinfo(file_in, tokenizer):
 
     input_ids = tokenizer.convert_tokens_to_ids(rels)
     input_ids = tokenizer.build_inputs_with_special_tokens(input_ids)
+    rel_attention_mask = [1]*len(input_ids)
 
     feature = {'input_ids': input_ids,
+               'rel_attention_mask': rel_attention_mask,
                'rel_pos': rel_pos,
                 }
     return feature
