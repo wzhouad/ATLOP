@@ -24,7 +24,7 @@ class MultiHeadAttention(nn.Module):
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
  
-    def forward(self, query, key, mask=None):
+    def forward(self, query, key, query_mask=None, key_mask=None):
         querys = self.W_query(query)  # [B, N_q, all_head_dim]
         keys = self.W_key(key)  # [B, N_k, all_head_dim]
         values = self.W_value(key)
@@ -38,19 +38,29 @@ class MultiHeadAttention(nn.Module):
         scores = torch.matmul(querys, keys.transpose(2, 3))  # [h, B, N_q, N_k]
         scores = scores / (self.key_dim ** 0.5)
  
-        ## mask
-        if mask is not None:
-            ## mask:  [B, N_k] --> [h, B, N_q, N_k]
-            mask = mask.unsqueeze(1).unsqueeze(0).repeat(self.num_heads, 1, querys.size(2), 1)
-            scores = scores.masked_fill(mask!=1, -np.inf)
+        ## key_mask
+        if key_mask is not None:
+            ## key_mask:  [B, N_k] --> [h, B, N_q, N_k]
+            key_mask = key_mask.unsqueeze(1).unsqueeze(0).repeat(self.num_heads, 1, querys.size(2), 1)
+            scores = scores.masked_fill(key_mask!=1, -np.inf)
         scores = F.softmax(scores, dim=3)
         #scores = self.dropout(scores)
  
         ## out = score * V
         out = torch.matmul(scores, values)  # [h, B, N_q, all_head_dim/h]
+        out = torch.tanh(self.dropout(out))
+
+        ## htr交互
+        scores = torch.matmul(out, out.transpose(2, 3))  # [h, B, N_q, N_k]
+        scores = scores / (self.query_dim ** 0.5)
+        if query_mask is not None:
+            ## query_mask:  [B, N_k] --> [h, B, N_q, N_k]
+            query_mask = query_mask.unsqueeze(1).unsqueeze(0).repeat(self.num_heads, 1, querys.size(2), 1)
+            scores = scores.masked_fill(query_mask!=1, -np.inf)
+        scores = F.softmax(scores, dim=3)
+        out = torch.matmul(scores, out)  # [h, B, N_q, all_head_dim/h]
+        out = torch.tanh(self.dropout(out))
         out = torch.cat(torch.split(out, 1, dim=0), dim=3).squeeze(0)  # [B, N_q, all_head_dim]
-        out = self.dropout(out)
- 
         return out, scores
     
 
