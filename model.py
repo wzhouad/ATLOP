@@ -1,3 +1,4 @@
+from typing import Callable, Optional, Union
 import torch
 import torch.nn as nn
 from torch.nn.modules.normalization import LayerNorm
@@ -46,7 +47,7 @@ class MultiHeadAttention(nn.Module):
             scores = scores.masked_fill(key_mask!=1, -np.inf)
         scores = self.dropout1(F.softmax(scores, dim=3))
         out = torch.matmul(scores, values)  # [h, B, N_q, all_head_dim/h]
-        out = torch.tanh(out)
+        #out = torch.tanh(out)
 
         ## htr交互
         scores = torch.matmul(out, out.transpose(2, 3))  # [h, B, N_q, N_k]
@@ -57,10 +58,92 @@ class MultiHeadAttention(nn.Module):
             scores = scores.masked_fill(query_mask!=1, -np.inf)
         scores = self.dropout2(F.softmax(scores, dim=3))
         out = torch.matmul(scores, out)  # [h, B, N_q, all_head_dim/h]
-        out = torch.tanh(out)
 
         out = torch.cat(torch.split(out, 1, dim=0), dim=3).squeeze(0)  # [B, N_q, all_head_dim]
+        out = torch.tanh(out)
         return out, scores
+    
+class TransformerEncoderLayer(nn.Module):
+    __constants__ = ['batch_first', 'norm_first']
+
+    def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
+                 activation: Union[str, Callable[[torch.Tensor], torch.Tensor]] = F.relu,
+                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
+                 device=None, dtype=None) -> None:
+        factory_kwargs = {'device': device, 'dtype': dtype}
+        super(TransformerEncoderLayer, self).__init__()
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
+                                            **factory_kwargs)
+        # Implementation of Feedforward model
+        self.linear1 = nn.Linear(d_model, dim_feedforward, **factory_kwargs)
+        self.dropout = Dropout(dropout)
+        self.linear2 = nn.Linear(dim_feedforward, d_model, **factory_kwargs)
+
+        self.norm_first = norm_first
+        self.norm1 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        self.dropout1 = Dropout(dropout)
+        self.dropout2 = Dropout(dropout)
+
+        # Legacy string support for activation function.
+        if isinstance(activation, str):
+            activation = self._get_activation_fn(activation)
+
+        # We can't test self.activation in forward() in TorchScript,
+        # so stash some information about it instead.
+        if activation is F.relu or isinstance(activation, torch.nn.ReLU):
+            self.activation_relu_or_gelu = 1
+        elif activation is F.gelu or isinstance(activation, torch.nn.GELU):
+            self.activation_relu_or_gelu = 2
+        else:
+            self.activation_relu_or_gelu = 0
+        self.activation = activation
+    
+    def _get_activation_fn(activation: str) -> Callable[[torch.Tensor], torch.Tensor]:
+        if activation == "relu":
+            return F.relu
+        elif activation == "gelu":
+            return F.gelu
+
+        raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
+
+    def __setstate__(self, state):
+        super(TransformerEncoderLayer, self).__setstate__(state)
+        if not hasattr(self, 'activation'):
+            self.activation = F.relu
+
+
+    def forward(self, src: torch.Tensor, src_mask: Optional[torch.Tensor] = None,
+                src_key_padding_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if src_key_padding_mask is not None:
+            _skpm_dtype = src_key_padding_mask.dtype
+            if _skpm_dtype != torch.bool and not torch.is_floating_point(src_key_padding_mask):
+                raise AssertionError(
+                    "only bool and floating types of key_padding_mask are supported")
+        
+        x = src
+        if self.norm_first:
+            x = x + self._sa_block(self.norm1(x), src_mask, src_key_padding_mask)
+            x = x + self._ff_block(self.norm2(x))
+        else:
+            x = self.norm1(x + self._sa_block(x, src_mask, src_key_padding_mask))
+            x = self.norm2(x + self._ff_block(x))
+
+        return x
+
+    # self-attention block
+    def _sa_block(self, x: torch.Tensor,
+                  attn_mask: Optional[torch.Tensor], key_padding_mask: Optional[torch.Tensor]) -> torch.Tensor:
+        x = self.self_attn(x, x, x,
+                           attn_mask=attn_mask,
+                           key_padding_mask=key_padding_mask,
+                           need_weights=False)[0]
+        return self.dropout1(x)
+
+    # feed forward block
+    def _ff_block(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        return self.dropout2(x)
     
 
 class DocREModel(nn.Module):
@@ -74,7 +157,7 @@ class DocREModel(nn.Module):
         # self.head_extractor = nn.Linear(2 * config.hidden_size, config.hidden_size)
         # self.tail_extractor = nn.Linear(2 * config.hidden_size, config.hidden_size)
         self.extractor = nn.Linear(3 * config.hidden_size, config.hidden_size)
-        self.entity_pair_interactor = nn.TransformerEncoderLayer(d_model=config.hidden_size, batch_first=True)
+        # self.entity_pair_interactor = TransformerEncoderLayer(d_model=config.hidden_size, nhead=16, batch_first=True)
         self.entity_rel_interactor = MultiHeadAttention(config,
                                                         config.hidden_size,
                                                         config.hidden_size,
@@ -82,9 +165,9 @@ class DocREModel(nn.Module):
                                                         config.num_attention_heads)
         
         self.interactor_norm = LayerNorm(config.hidden_size, eps=1e-5)
-        # self.bilinear = nn.Linear(emb_size * block_size, config.num_labels)
+        self.bilinear = nn.Linear(emb_size * block_size, config.num_labels)
         self.entity_pair_classifier = nn.Linear(config.hidden_size, config.num_labels)
-        self.rel_calssifier = nn.Linear(config.hidden_size, 1)
+        #self.rel_calssifier = nn.Linear(config.hidden_size, 1)
 
         self.emb_size = emb_size
         self.block_size = block_size
@@ -185,27 +268,33 @@ class DocREModel(nn.Module):
                                     torch.zeros(max(hts_len)-i, dtype=torch.float, device=hts.device)],
                                     dim=0) for i in hts_len]
         hts_attn_mask = torch.stack(hts_attn_mask, dim=0)
+
+        # residual = hts
+        # hts = self.entity_pair_interactor(src=hts,
+        #                                   src_key_padding_mask=(hts_attn_mask!=1))
+        # hts = hts + residual
+        
     
-        # rels, _ = self.encode(rel_ids, rel_attention_mask)
-        # rel_pos = torch.LongTensor(rel_pos).to(rels.device)
-        # rels = torch.index_select(rels.squeeze(0), 0, rel_pos)
+        rels, _ = self.encode(rel_ids, rel_attention_mask)
+        rel_pos = torch.LongTensor(rel_pos).to(rels.device)
+        rels = torch.index_select(rels.squeeze(0), 0, rel_pos)
 
-        # rels = rels.repeat(input_ids.size(0), 1, 1)
-        # rel_attention_mask = torch.ones(rels.size(0), rels.size(1), dtype=torch.float, device=rels.device)
-
-
-        # hts_1 = self.entity_rel_interactor(hts, rels, hts_attn_mask, rel_attention_mask)[0]
-        # rels_1 = self.entity_rel_interactor(rels, hts, rel_attention_mask, hts_attn_mask)[0]
+        rels = rels.repeat(input_ids.size(0), 1, 1)
+        rel_attention_mask = torch.ones(rels.size(0), rels.size(1), dtype=torch.float, device=rels.device)
 
 
-        # hts = self.interactor_norm(hts + hts_1)
-        # rels = self.interactor_norm(rels + rels_1)
+        hts_1 = self.entity_rel_interactor(hts, rels, hts_attn_mask, rel_attention_mask)[0]
+        #rels_1 = self.entity_rel_interactor(rels, hts, rel_attention_mask, hts_attn_mask)[0]
 
-        # hts = hts.view(-1, hts.size(-1))[hts_attn_mask.view(-1)==1]
-        # rels = rels.view(-1, rels.size(-1))[rel_attention_mask.view(-1)==1]
+
+        hts = self.interactor_norm(hts + hts_1)
+        #rels = self.interactor_norm(rels + rels_1)
+
+        hts = hts.view(-1, hts.size(-1))[hts_attn_mask.view(-1)==1]
+        #rels = rels.view(-1, rels.size(-1))[rel_attention_mask.view(-1)==1]
 
         hts_logits = self.entity_pair_classifier(hts)
-        rels_logits = self.rel_calssifier(rels)
+        #rels_logits = self.rel_calssifier(rels)
 
 
         output = (self.loss_fnt.get_label(hts_logits, num_labels=self.num_labels),)
@@ -214,11 +303,16 @@ class DocREModel(nn.Module):
             labels = torch.cat(labels, dim=0).to(hts_logits)
             hts_loss = self.loss_fnt(hts_logits.float(), labels.float())
             
-            rels_labels = torch.tensor(rel_labels).view(-1).to(rels_logits)
-            rels_loss_func = nn.BCEWithLogitsLoss(reduction="mean")
-            rels_loss = rels_loss_func(input = rels_logits.squeeze(1), target = rels_labels)
+            # rels_labels = torch.tensor(rel_labels).view(-1).to(rels_logits)
+            # rels_loss_func = nn.BCEWithLogitsLoss(reduction="mean")
+            # rels_loss = rels_loss_func(input = rels_logits.squeeze(1), target = rels_labels)
 
-            total_loss = hts_loss + rels_loss
+            # consis_loss_func = nn.MSELoss(reduction="sum")
+            # consis_loss = consis_loss_func(input = hts_logits.mean(0), target = rels_logits.view(input_ids.size(0), -1).mean(0))
+
+            total_loss = hts_loss #+ 0.5*rels_loss
+            
+            #print("hts_loss:{}, rels_loss:{}".format(hts_loss.item(), 0.5*rels_loss.item()))
             
             output = (total_loss.to(sequence_output),) + output
 
