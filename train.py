@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '3'
 
 import numpy as np
 import torch
@@ -72,7 +72,7 @@ def train(args, model, train_features, dev_features, test_features, relinfo_feat
                         torch.save(model.state_dict(), args.save_last)
         return num_steps
 
-    new_layer = ["extractor", "interactor", "entity_pair_classifier", "rel_calssifier"]
+    new_layer = ["extractor", "interactor"]
     optimizer_grouped_parameters = [
         {"params": [p for n, p in model.named_parameters() if not any(nd in n for nd in new_layer)], },  #  预训练模型
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in new_layer)], "lr": 1e-4}, # 新加的网络 1e-4

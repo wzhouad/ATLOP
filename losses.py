@@ -18,7 +18,23 @@ class ATLoss(nn.Module):
 
         # Rank positive classes to TH
         logit1 = logits - (1 - p_mask) * 1e30  # 无关系的logit变成类似负无穷
+        
+        # method 0
         loss1 = -(F.log_softmax(logit1, dim=-1) * labels).sum(1)
+
+        # method 1
+        # softmaxed_logit1 = F.softmax(logit1, dim=-1) + (1 - p_mask) * 1
+        # loss1 = -((1-softmaxed_logit1) * torch.log(softmaxed_logit1) * labels).sum(1)
+
+        # method 2
+        # softmaxed_logit1 = F.softmax(logit1, dim=-1) + (1 - p_mask) * 1
+        # loss1 = ((1 - torch.pow(softmaxed_logit1, self.gamma)) * torch.log(softmaxed_logit1) * labels).sum(1)
+
+        # method other
+        # diff_logit1 = softmaxed_logit1 - softmaxed_logit1[:, 0].unsqueeze(1)
+        # diff_logit1 = torch.abs(torch.min(diff_logit1 * labels, dim=-1)[0]).unsqueeze(1) + diff_logit1
+        # diff_logit1 = torch.reciprocal(diff_logit1)
+        #loss1 = -(F.log_softmax(logit1, dim=-1) * labels).sum(1)
 
         # Rank TH to negative classes
         logit2 = logits - (1 - n_mask) * 1e30   # 有关系的logit变成类似负无穷
