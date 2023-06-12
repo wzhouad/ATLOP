@@ -1,0 +1,98 @@
+,id,rel,name,description,example
+0,0,P0,no relation,there is no relation between the two entities,Banana and beef are no relation.
+1,1,P17,country,sovereign state of this item (not to be used for human beings),Greenland is an autonomous territory of Denmark.
+2,2,P131,located in the administrative territorial entity,the item is located on the territory of the following administrative entity. Use P276 for specifying locations that are non-administrative places and for items about events. Use P1382 if the item falls only partially into the administrative entity.,Paris is located in the Île
+3,3,P27,country of citizenship,the object is a country that recognizes the subject as its citizen,Elon Musk has South African citizenship.
+4,4,P150,contains administrative territorial entity,(list of) direct subdivisions of an administrative territorial entity,Los Angeles County contains the city of Los Angeles.
+5,5,P577,publication date,date or point in time when a work was first published or released,The book To Kill a Mockingbird was published in 1960.
+6,6,P175,performer,"actor, musician, band or other performer associated with this role or musical work",Ed Sheeran performed 'Photograph' at tonight's concert.
+7,7,P569,date of birth,date on which the subject was born,"Albert Einstein was born on March 14, 1879."
+8,8,P570,date of death,date on which the subject died,"Isaac Newton died on March 31, 1727."
+9,9,P161,cast member,"actor in the subject production [use ""character role"" (P453) and/or ""name of the character role"" (P4633) as qualifiers] [use ""voice actor"" (P725) for voice-only role]",Tom Hanks was a cast member in the movie Forrest Gump.
+10,10,P264,record label,brand and trademark associated with the marketing of subject music recordings and music videos,Sony Music Entertainment is a record label that has produced Beyoncé and Adele.
+11,11,P527,has part,"part of this subject; inverse property of ""part of"" (P361). See also ""has parts of the class"" (P2670).",A car has parts such as an engine and wheels.
+12,12,P361,part of,"object of which the subject is a part (if this subject is already part of object A which is a part of object B, then please only make the subject part of object A). Inverse property of ""has part"" (P527, see also ""has parts of the class"" (P2670)).",The heart is part of the human body.
+13,13,P495,country of origin,"country of origin of this item (creative work, food, phrase, product, etc.)",Toyota is a company from Japan.
+14,14,P19,place of birth,"most specific known (e.g. city instead of country, or hospital instead of city) birth location of a person, animal or fictional character",Newton was born in England.
+15,15,P571,inception,date or point in time when the subject came into existence as defined,"The company Apple was founded on April 1, 1976."
+16,16,P54,member of sports team,sports teams or clubs that the subject represents or represented,Lionel Messi is a member of FC Barcelona.
+17,17,P102,member of political party,the political party of which this politician is or has been a member or otherwise affiliated,Joe Biden is a member of the Democratic Party.
+18,18,P463,member of,"organization, club or musical group to which the subject belongs. Do not use for membership in ethnic or social groups, nor for holding a political position, such as a member of parliament (use P39 for that).",The European Union is a member of the United Nations.
+19,19,P3373,sibling,"the subject and the object have the same parents (brother, sister, etc.); use ""relative"" (P1038) for siblings-in-law (brother-in-law, sister-in-law, etc.) and step-siblings (step-brothers, step-sisters, etc.)",Prince William and Prince Harry are siblings.
+20,20,P40,child,subject has object as child. Do not use for stepchildren,Prince William and Prince Harry are children of Princess Diana.
+21,21,P30,continent,continent of which the subject is a part,France lies in the west of Europe.
+22,22,P50,author,"main creator(s) of a written work (use on works, not humans); use P2093 when Wikidata item is unknown or does not exist",J.K. Rowling is the author of the Harry Potter series.
+23,23,P1441,present in work,"this (fictional or fictionalized) entity or person appears in that work as part of the narration (use P2860 for works citing other works, P361/P1433 for works being part of other works, P1343 for entities described in non-fictional accounts)","Harry Potter is present in the work ""Harry Potter and the Philosopher's Stone""."
+24,24,P1001,applies to jurisdiction,"the item (institution, law, public office, public register...) or statement belongs to or has power over or applies to the value (a territorial jurisdiction: a country, state, municipality, ...)",The U.S. Constitution applies to the jurisdiction of the United States.
+25,25,P69,educated at,educational institution attended by subject,Stephen Hawking was educated at the University of Cambridge.
+26,26,P26,spouse,"the subject has the object as their spouse (husband, wife, partner, etc.). Use ""unmarried partner"" (P451) for non-married companions",Bill Gates is married to Melinda Gates.
+27,27,P607,conflict,"battles, wars or other military engagements in which the person or item participated",India and Pakistan have erupted in a territorial conflict.
+28,28,P57,director,"director(s) of film, TV-series, stageplay, video game or similar",Christopher Nolan directed the movie Inception.
+29,29,P159,headquarters location,"city, where an organization's headquarters is or has been situated. Use P276 qualifier for specific building","Apple's headquarters are located in Cupertino, California."
+30,30,P22,father,"male parent of the subject. For stepfather, use ""stepparent"" (P3448)",Barack Obama's father is Barack Obama Sr.
+31,31,P400,platform,"platform for which a work was developed or released, or the specific platform version of a software product",The game was developed for the PlayStation platform.
+32,32,P1344,participant of,event in which a person or organization was/is a participant; inverse of P710 or P1923,John was a participant of the marathon.
+33,33,P206,located in or next to body of water,"sea, lake, river or stream",Sydney is located next to the Pacific Ocean.
+34,34,P127,owned by,owner of the subject,Instagram is owned by Facebook.
+35,35,P170,creator,maker of this creative work or other object (where no more specific property exists),Stan Lee is the creator of Spider
+36,36,P178,developer,organisation or person that developed the item,Microsoft is the developer of the Windows operating system.
+37,37,P20,place of death,"most specific known (e.g. city instead of country, or hospital instead of city) death location of a person, animal or fictional character",Mozart died in Vienna.
+38,38,P1412,"languages spoken, written or signed","language(s) that a person or a people speaks, writes or signs, including the native language(s)",John speaks English and Spanish fluently.
+39,39,P155,follows,"immediately prior item in a series of which the subject is a part [if the subject has replaced the preceding item, e.g. political offices, use ""replaces"" (P1365)]",Barack Obama follows George W. Bush as the President of the United States.
+40,40,P118,league,league in which team or player plays or has played in,The Los Angeles Lakers are a team in the NBA.
+41,41,P710,participant,"person, group of people or organization (object) that actively takes/took part in an event or process (subject).  Preferably qualify with ""object has role"" (P3831). Use P1923 for participants that are teams.",Serena Williams was a participant in the 2021 Australian Open.
+42,42,P6,head of government,"head of the executive power of this town, city, municipality, state, country, or other governmental body",Joe Biden is the head of the U.S. government.
+43,43,P108,employer,person or organization for which the subject works or worked,Google is the employer of Sundar Pichai.
+44,44,P276,location,"location of the object, structure or event. In the case of an administrative entity as containing item use P131. For statistical entities use P8138. In the case of a geographic entity use P706. Use P7153 for locations associated with the object.","The Louvre Museum is located in Paris, France."
+45,45,P156,followed by,"immediately following item in a series of which the subject is a part [if the subject has been replaced, e.g. political offices, use ""replaced by"" (P1366)]",George W. Bush is followed by Barack Obama as the President of the United States.
+46,46,P674,characters,"characters which appear in this item (like plays, operas, operettas, books, comics, films, TV series, video games)",Harry Potter and Ron Weasley are characters in the Harry Potter series.
+47,47,P166,award received,"award or recognition received by a person, organisation or creative work",Meryl Streep has received three Academy Awards.
+48,48,P194,legislative body,"legislative body governing this entity; political institution with elected representatives, such as a parliament/legislature or council",The United States Congress is the legislative body of the U.S. government.
+49,49,P123,publisher,"organization or person responsible for publishing books, periodicals, printed music, podcasts, games or software","The publisher of ""Game of Thrones"" is Bantam Books."
+50,50,P140,religion,"religion of a person, organization or religious building, or associated with this subject",The Taj Mahal is an Islamic architectural marvel.
+51,51,P800,notable work,"notable scientific, artistic or literary work, or other work of significance among subject's works",The Mona Lisa is a notable work of Leonardo da Vinci.
+52,52,P449,original network,network(s) or service(s) that originally broadcasted a radio or television program,The TV show Breaking Bad aired on the AMC network.
+53,53,P58,screenwriter,person(s) who wrote the script for subject item,Aaron Sorkin is the screenwriter of The Social Network.
+54,54,P35,head of state,official with the highest formal authority in a country/state,Queen Elizabeth II is the head of state of the United Kingdom.
+55,55,P179,series,series which contains the subject,The Eternal Life of Death is the final book of the Three
+56,56,P706,located on terrain feature,located on the specified (geo)physical feature. Should not be used when the value is only political/administrative (P131) or a mountain range (P4552).,Mount Everest is located on the Himalayan mountain range.
+57,57,P162,producer,"person(s) who produced the film, musical work, theatrical production, etc. (for film, this does not include executive producers, associate producers, etc.) [for production company, use P272, video games - use P178]",Steven Spielberg produced the movie Jurassic Park.
+58,58,P37,official language,language designated as official by this item,Spanish is an official language in Mexico.
+59,59,P241,military branch,"branch to which this military unit, award, office, or person belongs, e.g. Royal Navy",The United States Army is a military branch of the U.S. government.
+60,60,P31,instance of,that class of which this subject is a particular example and member,The Eiffel Tower is an instance of a tower.
+61,61,P403,mouth of the watercourse,the body of water to which the watercourse drains,The Mississippi River flows into the Gulf of Mexico at its mouth.
+62,62,P580,start time,time an item begins to exist or a statement starts being valid,The Super Bowl starts at 6:30 PM EST.
+63,63,P137,operator,"person, profession, or organization that operates the equipment, facility, or service",NASA is the operator of the International Space Station.
+64,64,P585,point in time,"time and date something took place, existed or a statement was true","The first moon landing occurred on July 20, 1969."
+65,65,P112,founded by,"founder or co-founder of this organization, religion or place",Facebook was founded by Mark Zuckerberg.
+66,66,P86,composer,"person(s) who wrote the music [for lyricist, use ""lyrics by"" (P676)]",Beethoven composed the Symphony of Destiny.
+67,67,P176,manufacturer,manufacturer or producer of this product,Apple is the manufacturer of the iPhone.
+68,68,P749,parent organization,"parent organization of an organization, opposite of subsidiaries (P355)","YouTube is a subsidiary of Google, which is the parent organization."
+69,69,P937,work location,"location where persons or organisations were actively participating in employment, business or other work",John's work location was in downtown Manhattan.
+70,70,P36,capital,"seat of government of a country, province, state or other type of administrative territorial entity",Tokyo is the capital of Japan.
+71,71,P576,"dissolved, abolished or demolished","point in time at which the subject (organisation, building) ceased to exist;  see ""date of official closure"" (P3999) for closing a facility, ""service retirement"" (P730) for retiring equipment,  ""discontinued date"" (P2669) for stopping a product",The Berlin Wall was demolished in 1989.
+72,72,P355,subsidiary,"subsidiary of a company or organization; generally a fully owned separate corporation. Compare with ""business division"" (P199). Opposite of parent organization (P749).",YouTube is a subsidiary of Google.
+73,73,P136,genre,creative work's genre or an artist's field of work (P101). Use main subject (P921) to relate creative works to their topic,Science fiction is a popular genre of literature.
+74,74,P364,original language of work,"language in which a film or a performance work was originally created. Deprecated for written works and songs; use P407 (""language of work or name"") instead.",The original language of Don Quixote is Spanish.
+75,75,P272,production company,"company that produced this film, audio or performing arts work",The production company for this film was Warner Bros.
+76,76,P172,ethnic group,"subject's ethnicity (consensus is that a VERY high standard of proof is needed for this field to be used. In general this means 1) the subject claims it themself, or 2) it is widely agreed on by scholars, or 3) is fictional and portrayed as such)",Trump claims to be of German descent.
+77,77,P205,basin country,country that have drainage to/from or border the body of water,The Congo Basin is located in several African countries.
+78,78,P279,subclass of,next higher class or type; all instances of these items are instances of those items; this item is a class (subset) of that item. Not to be confused with P31 (instance of),A poodle is a subclass of the dog breed.
+79,79,P1376,capital of,"country, state, department, canton or other administrative division of which the municipality is the governmental seat",Madrid is the capital of Spain.
+80,80,P171,parent taxon,closest parent taxon of the taxon in question,Dogs and wolves belong to the parent taxon Canidae.
+81,81,P25,mother,"female parent of the subject. For stepmother, use ""stepparent"" (P3448)",Beyonce's mother is Tina Knowles.
+82,82,P488,chairperson,"presiding member of an organization, group or body",Sheryl Sandberg is the chairperson of Facebook.
+83,83,P582,end time,time an item ceases to exist or a statement stops being valid,The concert ends at 10:00 PM.
+84,84,P740,location of formation,location where a group or organization was formed,"The band U2 formed in Dublin, Ireland."
+85,85,P840,narrative location,the narrative of the work is set in this location,The book Moby
+86,86,P1366,replaced by,"other person or item which continues the item by replacing it in its role. Use P156 (followed by) if the item is not replaced (e.g. books in a series), nor identical, but adds to the series without dropping the role of this item in that series",The iPhone 11 was replaced by the iPhone 12.
+87,87,P676,lyrics by,author of song lyrics,"The song ""Bohemian Rhapsody"" has lyrics by Freddie Mercury."
+88,88,P1336,territory claimed by,administrative divisions that claim control of a given area,China claims Taiwan as its territory.
+89,89,P1056,product or material produced,"material or product produced by a government agency, business, industry, facility, or process",Apple produces iPhones and MacBooks.
+90,90,P551,residence,"the place where the person is or has been, resident",The White House is the residence of the U.S. President.
+91,91,P39,position held,subject currently or formerly holds the object position or public office,Angela Merkel held the position of Chancellor of Germany.
+92,92,P1365,replaces,"person, state or item replaced. Use ""structure replaces"" (P1398) for structures. Use ""follows"" (P155) if the previous item was not replaced or predecessor and successor are identical",The iPhone 12 replaces the iPhone 11.
+93,93,P737,influenced by,"this person, idea, etc. is informed by that other person, idea, etc., e.g. “Heidegger was influenced by Aristotle”",The Beatles were influenced by Elvis Presley.
+94,94,P190,sister city,"twin towns, sister cities, twinned municipalities and other localities that have a partnership or cooperative agreement, either legally or informally acknowledged by their governments",Paris and Berlin are sister cities.
+95,95,P807,separated from,subject was founded or started by separating from identified object,North Korea separated from South Korea in 1948.
+96,96,P1198,unemployment rate,portion of a workforce population that is not employed,The unemployment rate in the United States is currently 6.0%.

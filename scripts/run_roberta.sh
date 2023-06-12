@@ -1,9 +1,9 @@
 python train.py --data_dir ./dataset/docred \
 --transformer_type roberta \
 --model_name_or_path roberta-large \
---log_name label-semantic-dot \
---save_path checkpoints/21-roberta-model-label-semantic-dot.pt \
---save_last checkpoints/21-roberta-model-last-label-semantic-dot.pt \
+--log_name label-semantic-dot-1 \
+--save_path checkpoints/22-roberta-model-label-semantic-dot-1.pt \
+--save_last checkpoints/22-roberta-model-last-label-semantic-dot-1.pt \
 --train_file train_annotated.json \
 --dev_file dev.json \
 --test_file test.json \

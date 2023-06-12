@@ -112,6 +112,8 @@ def evaluate(args, model, features, relinfo_features, tag="dev"):
     ans = to_official(preds, features)
     if len(ans) > 0:
         best_f1, _, best_f1_ign, _ = official_evaluate(ans, args.data_dir)
+    else:
+        best_f1, best_f1_ign = 0, 0
     output = {
         tag + "_F1": best_f1 * 100,
         tag + "_F1_ign": best_f1_ign * 100,
@@ -242,6 +244,7 @@ def main():
 
     if os.path.exists(os.path.join(args.data_dir, args.relinfo_file + suffix)):
         relinfo_features = torch.load(os.path.join(args.data_dir, args.relinfo_file + suffix))
+        #relinfo_features = torch.load("/data1/jiantingtang/workspace/ATLOP/dataset/docred/rel_name_description.pt")
         print('Loaded relinfo features')
     else:
         relinfo_file = os.path.join(args.data_dir, args.relinfo_file)
